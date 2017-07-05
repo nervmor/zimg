@@ -489,6 +489,7 @@ int json_return(evhtp_request_t *req, int err_no, const char *md5sum, int post_s
     LOG_PRINT(LOG_DEBUG, "ret_str_unformat: %s", ret_str_unformat);
     evbuffer_add_printf(req->buffer_out, "%s", ret_str_unformat);
     evhtp_headers_add_header(req->headers_out, evhtp_header_new("Content-Type", "application/json", 0, 0));
+   
     cJSON_Delete(j_ret);
     free(ret_str_unformat);
     return 0;
@@ -716,6 +717,8 @@ void post_request_cb(evhtp_request_t *req, void *arg) {
         goto err;
     }
     evhtp_headers_add_header(req->headers_out, evhtp_header_new("Server", settings.server_name, 0, 1));
+    evhtp_headers_add_header(req->headers_out,
+        evhtp_header_new("Access-Control-Allow-Origin", "*", 0, 0));
     evhtp_send_reply(req, EVHTP_RES_OK);
     LOG_PRINT(LOG_DEBUG, "============post_request_cb() DONE!===============");
     goto done;
@@ -723,6 +726,8 @@ void post_request_cb(evhtp_request_t *req, void *arg) {
 forbidden:
     json_return(req, err_no, NULL, 0);
     evhtp_headers_add_header(req->headers_out, evhtp_header_new("Server", settings.server_name, 0, 1));
+    evhtp_headers_add_header(req->headers_out,
+        evhtp_header_new("Access-Control-Allow-Origin", "*", 0, 0));
     evhtp_send_reply(req, EVHTP_RES_OK);
     LOG_PRINT(LOG_DEBUG, "============post_request_cb() FORBIDDEN!===============");
     goto done;
@@ -732,6 +737,8 @@ err:
     json_return(req, err_no, NULL, 0);
 
     evhtp_headers_add_header(req->headers_out, evhtp_header_new("Server", settings.server_name, 0, 1));
+    evhtp_headers_add_header(req->headers_out,
+        evhtp_header_new("Access-Control-Allow-Origin", "*", 0, 0));
     evhtp_send_reply(req, EVHTP_RES_OK);
     LOG_PRINT(LOG_DEBUG, "============post_request_cb() ERROR!===============");
 
@@ -770,11 +777,20 @@ void get_request_cb(evhtp_request_t *req, void *arg) {
         LOG_PRINT(LOG_DEBUG, "POST Request.");
         post_request_cb(req, NULL);
         return;
+    } else if (strcmp(method_strmap[req_method], "OPTIONS") == 0) {
+        LOG_PRINT(LOG_DEBUG, "OPTIONS Request.");
+        evhtp_headers_add_header(req->headers_out, evhtp_header_new("Server", settings.server_name, 0, 1));
+        evhtp_headers_add_header(req->headers_out, evhtp_header_new("Content-Type", "text/html", 0, 0));
+        evhtp_headers_add_header(req->headers_out,
+            evhtp_header_new("Access-Control-Allow-Origin", "*", 0, 0));
+        evhtp_send_reply(req, EVHTP_RES_OK);
+        LOG_PRINT(LOG_DEBUG, "============options_request() DONE!===============");
+        goto done;
     } else if (strcmp(method_strmap[req_method], "GET") != 0) {
         LOG_PRINT(LOG_DEBUG, "Request Method Not Support.");
         LOG_PRINT(LOG_INFO, "%s refuse method", address);
         goto err;
-    }
+    } 
 
     if (settings.down_access != NULL) {
         int acs = zimg_access_inet(settings.down_access, ss->sin_addr.s_addr);
@@ -814,6 +830,8 @@ void get_request_cb(evhtp_request_t *req, void *arg) {
         //evbuffer_add_printf(req->buffer_out, "<html>\n </html>\n");
         evhtp_headers_add_header(req->headers_out, evhtp_header_new("Server", settings.server_name, 0, 1));
         evhtp_headers_add_header(req->headers_out, evhtp_header_new("Content-Type", "text/html", 0, 0));
+        evhtp_headers_add_header(req->headers_out,
+            evhtp_header_new("Access-Control-Allow-Origin", "*", 0, 0));
         evhtp_send_reply(req, EVHTP_RES_OK);
         LOG_PRINT(LOG_DEBUG, "============get_request_cb() DONE!===============");
         LOG_PRINT(LOG_INFO, "%s succ root page", address);
@@ -824,6 +842,8 @@ void get_request_cb(evhtp_request_t *req, void *arg) {
         LOG_PRINT(LOG_DEBUG, "favicon.ico Request, Denied.");
         evhtp_headers_add_header(req->headers_out, evhtp_header_new("Server", settings.server_name, 0, 1));
         evhtp_headers_add_header(req->headers_out, evhtp_header_new("Content-Type", "text/html", 0, 0));
+        evhtp_headers_add_header(req->headers_out,
+            evhtp_header_new("Access-Control-Allow-Origin", "*", 0, 0));
         zimg_headers_add(req, settings.headers);
         evhtp_send_reply(req, EVHTP_RES_OK);
         goto done;
@@ -967,6 +987,8 @@ void get_request_cb(evhtp_request_t *req, void *arg) {
         else
             LOG_PRINT(LOG_INFO, "%s succ 304 pic:%s w:%d h:%d p:%d g:%d x:%d y:%d r:%d q:%d f:%s",
                       address, md5, width, height, proportion, gray, x, y, rotate, quality, zimg_req->fmt);
+        evhtp_headers_add_header(req->headers_out,
+            evhtp_header_new("Access-Control-Allow-Origin", "*", 0, 0));
         evhtp_send_reply(req, EVHTP_RES_NOTMOD);
         goto done;
     }
@@ -977,6 +999,8 @@ void get_request_cb(evhtp_request_t *req, void *arg) {
     LOG_PRINT(LOG_DEBUG, "Got the File!");
     evhtp_headers_add_header(req->headers_out, evhtp_header_new("Server", settings.server_name, 0, 1));
     evhtp_headers_add_header(req->headers_out, evhtp_header_new("Content-Type", "image/jpeg", 0, 0));
+    evhtp_headers_add_header(req->headers_out,
+        evhtp_header_new("Access-Control-Allow-Origin", "*", 0, 0));
     zimg_headers_add(req, settings.headers);
     evhtp_send_reply(req, EVHTP_RES_OK);
     if (type)
@@ -992,6 +1016,8 @@ forbidden:
     evbuffer_add_printf(req->buffer_out, "<html><body><h1>403 Forbidden!</h1></body></html>");
     evhtp_headers_add_header(req->headers_out, evhtp_header_new("Server", settings.server_name, 0, 1));
     evhtp_headers_add_header(req->headers_out, evhtp_header_new("Content-Type", "text/html", 0, 0));
+    evhtp_headers_add_header(req->headers_out,
+        evhtp_header_new("Access-Control-Allow-Origin", "*", 0, 0));
     evhtp_send_reply(req, EVHTP_RES_FORBIDDEN);
     LOG_PRINT(LOG_DEBUG, "============get_request_cb() FORBIDDEN!===============");
     goto done;
@@ -1000,6 +1026,8 @@ err:
     evbuffer_add_printf(req->buffer_out, "<html><body><h1>404 Not Found!</h1></body></html>");
     evhtp_headers_add_header(req->headers_out, evhtp_header_new("Server", settings.server_name, 0, 1));
     evhtp_headers_add_header(req->headers_out, evhtp_header_new("Content-Type", "text/html", 0, 0));
+    evhtp_headers_add_header(req->headers_out,
+        evhtp_header_new("Access-Control-Allow-Origin", "*", 0, 0));
     evhtp_send_reply(req, EVHTP_RES_NOTFOUND);
     LOG_PRINT(LOG_DEBUG, "============get_request_cb() ERROR!===============");
 
