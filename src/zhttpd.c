@@ -452,6 +452,11 @@ int on_chunk_data(multipart_parser* p, const char *at, size_t length) {
     }
     if (length < 1)
         return 0;
+
+    // already get it
+    if (mp_arg->fmd5[0] != '\0') {
+        return 0;
+    }
     //multipart_parser_set_data(p, mp_arg);
     char md5sum[33];
     if (save_img(mp_arg->thr_arg, at, length, md5sum) == -1) {
